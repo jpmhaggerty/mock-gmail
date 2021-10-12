@@ -1,130 +1,173 @@
-import * as React from "react";
 import "./App.css";
-import Paper from "@mui/material/Paper";
-import { styled, alpha } from "@mui/material/styles";
-import AppBar from "@mui/material/AppBar";
+import * as React from "react";
 import Box from "@mui/material/Box";
+import Drawer from "@mui/material/Drawer";
+import CssBaseline from "@mui/material/CssBaseline";
 import Toolbar from "@mui/material/Toolbar";
-import IconButton from "@mui/material/IconButton";
-import Typography from "@mui/material/Typography";
-import InputBase from "@mui/material/InputBase";
-import MenuIcon from "@mui/icons-material/Menu";
-import SearchIcon from "@mui/icons-material/Search";
-
-import SubjectList from "./subjectList.js";
+import List from "@mui/material/List";
+import Divider from "@mui/material/Divider";
+import ListItem from "@mui/material/ListItem";
+import ListItemIcon from "@mui/material/ListItemIcon";
+import MailIcon from "@mui/icons-material/Mail";
+import CreateSendMail from "./sendMail.js";
+import FillMainScreen from "./mainScreen.js";
+import SideBar from "./sideBar.js";
+import SearchBar from "./searchBar.js";
 
 class App extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
+      backupArray: [],
       gmailAPIArray: [],
-      searchText: ""
+      searchArray: [],
+      open: false,
+      searchText: "",
+      curId: "",
+      curDate: "",
+      curMessage: "",
+      curRecipient: "",
+      curSender: "",
+      curSubject: "",
+      // outgoing: [],
+      sendToAPI: {},
     };
-    this.searchBoxBlur = this.searchBoxBlur.bind(this);
-    // this.handleClick = this.handleClick.bind(this);
+    this.drawerWidth = 300;
+    this.handleEmailForm = this.handleEmailForm.bind(this);
+    this.handleSendMessage = this.handleSendMessage.bind(this);
+    this.handleFillMain = this.handleFillMain.bind(this);
+    this.handleSearch = this.handleSearch.bind(this);
+    this.handleResetSideBar = this.handleResetSideBar.bind(this);
+  }
+
+  handleEmailForm() {
+    this.setState({ open: this.state.open ? false : true });
+  }
+
+  handleSendMessage(outgoing) {
+    this.setState({ sendToAPI: outgoing });
+    console.log("Ready to send:", this.state.sendToAPI);
+    this.postData("http://localhost:3001/send", this.state.sendToAPI).then(
+      (data) => {
+        console.log(data);
+      }
+    );
+  }
+
+  async postData(url = "", data = {}) {
+    // Default options are marked with *
+    const response = await fetch(url, {
+      method: "POST",
+      mode: "cors",
+      cache: "no-cache",
+      credentials: "same-origin",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      redirect: "follow",
+      referrerPolicy: "no-referrer",
+      body: JSON.stringify(data),
+    });
+    return response.json();
+  }
+
+  handleSearch(searchText) {
+    this.handleResetSideBar();
+    this.setState({ searchText: searchText });
+    console.log("Search text:", this.state.searchText);
+    for (let i = 0; i < this.state.gmailAPIArray.length; i++) {
+      if (this.state.gmailAPIArray[i].subject.includes(searchText)) {
+        this.state.searchArray.push(this.state.gmailAPIArray[i]);
+      }
+    }
+    this.setState({ gmailAPIArray: this.state.searchArray });
+    if (this.state.gmailAPIArray.length) {
+      this.handleFillMain(this.state.gmailAPIArray[0]);
+    } else {
+      this.handleFillMain([]);
+    }
+  }
+
+  handleResetSideBar() {
+    this.setState({ gmailAPIArray: this.state.backupArray, searchArray: [] });
+    document.getElementById("search-field").value = "";
+  }
+
+  handleFillMain(message) {
+    this.setState({
+      curId: message.id,
+      curSender: message.sender,
+      curDate: message.date,
+      curSubject: message.subject,
+      curRecipient: message.recipient,
+      curMessage: message.message,
+    });
   }
 
   async componentDidMount() {
     let response = await fetch("http://localhost:3001/emails");
     if (response.status >= 200 && response.status <= 299) {
       let json = await response.json();
-      this.setState({ gmailAPIArray: json });
+      this.setState({ gmailAPIArray: json, backupArray: json });
+      console.log("Received from server: ", this.state.gmailAPIArray);
     } else {
       console.log(response.status, response.statusText);
     }
   }
 
-  searchBoxBlur(event) {
-    console.log("1:", this.state.searchText);
-    this.setState({ searchText: event.target.value });
-    console.log("2:", this.state.searchText);
-  }
-
   render() {
-    const Search = styled("div")(({ theme }) => ({
-      position: "relative",
-      borderRadius: theme.shape.borderRadius,
-      backgroundColor: alpha(theme.palette.common.white, 0.15),
-      "&:hover": {
-        backgroundColor: alpha(theme.palette.common.white, 0.25),
-      },
-      marginLeft: 0,
-      width: "100%",
-      [theme.breakpoints.up("sm")]: {
-        marginLeft: theme.spacing(1),
-        width: "auto",
-      },
-    }));
-
-    const SearchIconWrapper = styled("div")(({ theme }) => ({
-      padding: theme.spacing(0, 2),
-      height: "100%",
-      position: "absolute",
-      pointerEvents: "none",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-    }));
-
-    const StyledInputBase = styled(InputBase)(({ theme }) => ({
-      color: "inherit",
-      "& .MuiInputBase-input": {
-        padding: theme.spacing(1, 1, 1, 0),
-        // vertical padding + font size from searchIcon
-        paddingLeft: `calc(1em + ${theme.spacing(4)})`,
-        transition: theme.transitions.create("width"),
-        width: "100%",
-        [theme.breakpoints.up("sm")]: {
-          width: "12ch",
-          "&:focus": {
-            width: "20ch",
-          },
-        },
-      },
-    }));
     return (
-      <div>
-        <Box sx={{ flexGrow: 1 }}>
-          <AppBar position="static">
-            <Toolbar>
-              <IconButton
-                size="large"
-                edge="start"
-                color="inherit"
-                aria-label="open drawer"
-                sx={{ mr: 2 }}
-              >
-                <MenuIcon />
-              </IconButton>
-              <Typography
-                variant="h6"
-                noWrap
-                component="div"
-                sx={{ flexGrow: 1, display: { xs: "none", sm: "block" } }}
-              >
-                Galvanize Mail
-              </Typography>
-              <Search>
-                <SearchIconWrapper>
-                  <SearchIcon />
-                </SearchIconWrapper>
-                <StyledInputBase
-                  id="search-field"
-                  placeholder="Search…"
-                  inputProps={{ "aria-label": "search" }}
-                  onBlur={(event) => this.searchBoxBlur(event)}
+      <Box sx={{ display: "flex" }}>
+        <CssBaseline />
+        <SearchBar
+          onChange={this.handleSearch}
+          onReset={this.handleResetSideBar}
+        />
+        <Drawer
+          variant="permanent"
+          sx={{
+            width: this.drawerWidth,
+            flexShrink: 0,
+            [`& .MuiDrawer-paper`]: {
+              width: this.drawerWidth,
+              boxSizing: "border-box",
+            },
+          }}
+        >
+          <Toolbar />
+          <Box sx={{ overflow: "auto" }}>
+            <List>
+              <ListItem>
+                <ListItemIcon>
+                  <MailIcon />
+                </ListItemIcon>
+                <CreateSendMail
+                  open={this.state.open}
+                  onForm={this.handleEmailForm}
+                  onFormSend={this.handleSendMessage}
                 />
-              </Search>
-            </Toolbar>
-          </AppBar>
+              </ListItem>
+            </List>
+            <Divider />
+            <SideBar
+              messages={this.state.gmailAPIArray}
+              onSideFocus={this.handleFillMain}
+            />
+          </Box>
+        </Drawer>
+        <Box component="main" sx={{ flexGrow: 1, p: 3 }}>
+          <FillMainScreen
+            id={this.state.curId}
+            sender={this.state.curSender}
+            date={this.state.curDate}
+            subject={this.state.curSubject}
+            recipient={this.state.curRecipient}
+            message={this.state.curMessage}
+          />
         </Box>
-        <Paper elevation={5} />
-        <SubjectList gmailAPIArray={this.state.gmailAPIArray} />
-      </div>
+      </Box>
     );
   }
 }
 
 export default App;
-
-// <MessageList messages={this.state.gmailFeed ? this.state.gmailFeed : []} />
